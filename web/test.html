@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="google" content="notranslate">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <link rel="stylesheet" type="text/css" href="style.css" /> 
+  <title>测试获取pdf信息</title>
+
+</head>
+<body>
+  <div id='top'>南方国际发票上报工具</div>
+  <div id='mainDiv' >
+    <input type="button" id='uploadButton' value='点击上传pdf发票' onClick="upLoadClicked()" />
+<input id="selectFile" name="fileupload" type="file" value="" onchange="fileChange()" />
+
+<div id='content'>
+  <div>请查看下述文字是否正确修改后上报
+    </div>
+    
+    <div class='infoBox'><div>发票总金额</div>
+    <div><textarea type="text" id="price" value="无"></textarea></div>
+    </div>
+    <div class='infoBox'><div>大写金额</div>
+    <div><textarea type="text" id="daxie" value="无"></textarea></div>
+    </div>
+    <div class='infoBox'><div>我方公司</div>
+    <div><textarea type="text" id="comp1" value="无"></textarea></div>
+    </div>
+    <div class='infoBox'><div>对方公司</div>
+    <div><textarea type="text" id="comp2" value="无"></textarea></div>
+    </div>
+    <div class='infoBox'><div>发票代码</div>
+    <div><textarea type="text" id="invoiceCode" value="无"></textarea></div>
+    </div>
+    <div class='infoBox'><div>发票号码</div>
+    <div><textarea type="text" id="invoiceNum" value="无"></textarea></div>
+    </div>
+    <div class='infoBox' ><div>开票时间</div>
+    <div><textarea type="text" id="date" value="无"></textarea></div>
+    </div>
+</div>
+</div>
+
+<iframe id='pdfViewer' ></iframe>
+</body>
+<script type="text/javascript" src="./js/Tool.js"></script>
+<script type="text/javascript" src="./js/nzh.cn.min.js"></script>
+<script type="text/javascript" src="../build/pdf.js"></script>
+<!--<script type="text/javascript" src="../build/pdf.worker.js"></script>-->
+<script>
+
+ document.getElementById("pdfViewer").style.height = document.documentElement.clientHeight+'px';
+
+ pdfjsLib.workerSrc = '../build/pdf.worker.js'
+ //pdfjsLib.cMapUrl = 'cmaps/';
+//pdfjsLib.cMapPacked = true;
+  var selectFile = document.getElementById('selectFile');
+function upLoadClicked(){
+  this.document.getElementById('selectFile').click();
+}
+
+  function fileChange () {
+    console.log(selectFile.files[0].name)
+
+
+    let file = selectFile.files[0];
+        let fileRender = new FileReader()
+        fileRender.readAsDataURL(file)
+        fileRender.onload=function (aaa) {
+           // console.log(aaa.target.result,"这是base64流文件")
+            sessionStorage.setItem("pdfBase64",aaa.target.result)
+            let pdfbase=aaa.target.result
+        
+    
+    let pdfData=atob(pdfbase.substr(pdfbase.indexOf('base64,')+7,pdfbase.length))
+    
+    var loadingTask=pdfjsLib.getDocument({data: pdfData,cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@2.2.228/cmaps/",
+    cMapPacked: true})
+    loadingTask.promise.then(pdf=>{
+      console.info('pdf文件打印:',pdf)
+      pdf.getPage(1).then(page=>{
+        console.info('page1打印:',page)
+        console.info('getAnnotations:',page.getAnnotations())
+        console.info('getTextContent:',page.getTextContent())
+        console.info('getViewport:',page.getViewport())
+        console.info('获取本页长款:',page.getViewport().viewBox[2],' * ',page.getViewport().viewBox[3])
+        console.info('获取本页长款:',page.getViewport().width,' * ',page.getViewport().height)
+        let pageWidth = page.getViewport().viewBox[2];
+        let pageHeight= page.getViewport().viewBox[3];
+        let invoiceInfo={         
+          invoiceCode1:'',
+          invoiceCode2:'',
+          invoiceDate:'',
+          Seller:'',
+          buyer:'',
+          price:'',
+          daxie:'',}
+          let tempDate=new Array();
+
+        page.getTextContent().then( function(textContent){
+          console.info(textContent.items)
+          textContent.items.forEach(element => {
+            if(
+            element.transform[4]/pageWidth>470.57/610 &&
+            element.transform[5]/pageHeight>357.9/394
+            ){
+              console.info('获取到发票代码：',element.str)
+              invoiceInfo.invoiceCode1=element.str;
+            }
+            if(
+            element.transform[4]/pageWidth>455/610 &&
+            element.transform[5]/pageHeight>341/394 &&
+            element.transform[5]/pageHeight<360.34/394
+            ){
+              console.info('获取到发票号码：',element.str)
+              invoiceInfo.invoiceCode2=element.str;
+            }
+            if(
+            element.transform[4]/pageWidth>100.46/610 &&
+            element.transform[4]/pageWidth<339.31/610 &&
+            element.transform[5]/pageHeight>285/394 &&
+            element.transform[5]/pageHeight<306.99/394
+            ){
+              console.info(element.transform[4],pageWidth,element.transform[4]/pageWidth)
+              console.info('获取到购方名称',element.str)
+              invoiceInfo.buyer=element.str
+            }
+            if(
+            element.transform[4]/pageWidth>172/610 &&
+            element.transform[4]/pageWidth<336/610 &&
+            element.transform[5]/pageHeight>99/394 &&
+            element.transform[5]/pageHeight<117/394
+            ){
+              console.info('大写金额',element.str)
+              invoiceInfo.daxie=element.str
+            }
+            if(
+            element.transform[4]/pageWidth>466/610 &&
+            element.transform[5]/pageHeight>99/394 &&
+            element.transform[5]/pageHeight<118/394
+            ){
+              console.info('小写金额',element.str)
+              invoiceInfo.price=element.str
+            }
+            if(
+            element.transform[4]/pageWidth>99.71/610 &&
+            element.transform[4]/pageWidth<239.27/610 &&
+            element.transform[5]/pageHeight>79.05/394 &&
+            element.transform[5]/pageHeight<95/394
+            ){
+              console.info('获取到销方名称',element.str)
+              invoiceInfo.Seller=element.str
+            }
+            if(
+            element.transform[4]/pageWidth>456/610 &&
+            element.transform[5]/pageHeight>330/394 &&
+            element.transform[5]/pageHeight<349.32/394
+            ){
+              console.info('开票日期',element.str)
+              tempDate.push(element)
+            }
+          });
+
+          let code1LabelIndex='发票代码:'
+          let code2LabelIndex='发票号码:'
+          textContent.items.forEach(item=>{
+            if(item.str==code1LabelIndex||item.str==code2LabelIndex){
+              console.info(item)
+              textContent.items.forEach(event=>{
+                if(event.transform[4]>item.transform[4]+item.width&&
+                  event.transform[5]>item.transform[5]-item.height&&
+                  event.transform[5]<item.transform[5]+item.height
+                ){
+                  console.info(event)
+                }
+              })
+            }
+           
+          })
+
+          do{
+            let maxX=0
+            let maxIndex=0
+            for(let i=0;i<tempDate.length;i++){
+              if(maxX<tempDate[i].transform[4]){
+                maxX=tempDate[i].transform[4]
+                maxIndex=i
+              }
+            }
+            //console.info(tempDate[maxIndex].str)
+            invoiceInfo.invoiceDate=tempDate[maxIndex].str.replace(/[^0-9]+/ig,"")+invoiceInfo.invoiceDate;
+            tempDate.splice(maxIndex,1)
+          }while(tempDate.length>0)
+        console.info( '获取到的日期:',invoiceInfo.invoiceDate)
+        setInvoiceText(invoiceInfo);
+
+        })
+      })
+    })
+    
+    //console.info('loadingTask:',loadingTask)
+    var url = selectFile.files[0].name;
+    // window.location.href = "./viewer.html?file=file://" + url // 当前页打开
+    //window.open("./viewer.html?file=" + url) // 新界面打开
+    document.getElementById("pdfViewer").src="./viewer.html";
+    //console.info('子页面解析url地址为:',"./viewer.html?file=" + url)
+  }
+  }
+  //从子页面获取到pdf信息
+  function getPdfContent(args){
+    
+    //console.info('获取到信息',args);
+   
+
+     /*
+    console.info(prices)
+    console.info(comp)
+    console.info(code)
+    */
+    /*
+    this.document.getElementById('content').innerHTML =
+    '请查看下述文字是否正确修改后上报'+'</p>'+
+    '识别到发票金额:'+prices[0]+'</p>'
+    +'识别到数字金额:'+prices[1]+'</p>'
+    +'识别到的公司1:'+comp[0]+'</p>'
+    +'识别到的公司2:'+comp[1]+'</p>'
+    +'发票代码:'+code[0]+'</p>'
+    +'发票号码:'+code[1]
+    */
+   /*
+  this.document.getElementById('price').value=prices[1]
+  this.document.getElementById('daxie').value=prices[0]
+  this.document.getElementById('comp1').value=comp[0]
+  this.document.getElementById('comp2').value=comp[1]
+  this.document.getElementById('invoiceCode').value=code[0]
+  this.document.getElementById('invoiceNum').value=code[1]
+  this.document.getElementById('date').value=code[2]
+  */
+  }
+
+  function setInvoiceText(invoice){
+    this.document.getElementById('price').value=invoice.price;
+    this.document.getElementById('daxie').value=invoice.daxie;
+    this.document.getElementById('comp1').value=invoice.Seller;
+    this.document.getElementById('comp2').value=invoice.buyer;
+    this.document.getElementById('invoiceCode').value=invoice.invoiceCode1
+    this.document.getElementById('invoiceNum').value=invoice.invoiceCode2
+    this.document.getElementById('date').value=invoice.invoiceDate
+  }
+</script>
+</html>
